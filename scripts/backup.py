@@ -24,6 +24,9 @@ RETENTION_DAYS = 30
 BACKUP_PREFIX = "dish-"
 DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 
+# Expliciet pad naar pg_dump 17 — runner heeft v16 als default op PATH
+PG_DUMP_BIN = "/usr/lib/postgresql/17/bin/pg_dump"
+
 
 def fail(message: str, exit_code: int = 1) -> None:
     print(f"::error::{message}", flush=True)
@@ -39,8 +42,12 @@ def run_pg_dump(db_url: str, output_path: Path) -> None:
     log("Starting pg_dump...")
     raw_path = output_path.with_suffix("")  # .sql intermediate
 
+    # Verifieer dat we de juiste pg_dump gebruiken
+    version_check = subprocess.run([PG_DUMP_BIN, "--version"], capture_output=True, text=True)
+    log(f"Using: {version_check.stdout.strip()}")
+
     cmd = [
-        "pg_dump",
+        PG_DUMP_BIN,
         "--no-owner",
         "--no-privileges",
         "--clean",
