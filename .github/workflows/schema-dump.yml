@@ -21,7 +21,7 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          pg_dump --schema-only --schema=public --no-owner --no-privileges "$SUPABASE_DB_URL" > schema.sql
+          /usr/lib/postgresql/17/bin/pg_dump --schema-only --schema=public --no-owner --no-privileges "$SUPABASE_DB_URL" > schema.sql
           echo "Regels in schema.sql:"
           wc -l schema.sql
       - name: Upload schema as artifact
