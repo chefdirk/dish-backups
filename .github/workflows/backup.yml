@@ -1,32 +1,26 @@
 name: Daily DB Backup
-
 on:
   schedule:
     # Elke nacht om 03:00 UTC (= 04:00 Brussels in winter, 05:00 in zomer)
     - cron: '0 3 * * *'
   workflow_dispatch: # Manueel triggerbaar via Actions tab
-
 permissions:
   contents: read
   id-token: write   # Vereist voor Workload Identity Federation
-
+  actions: write    # Vereist voor keepalive (workflow re-enable via API)
 jobs:
   backup:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
       - name: Install Python dependencies
         run: pip install -r scripts/requirements.txt
-
       - name: Install PostgreSQL 17 client
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
@@ -35,19 +29,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client-17
           pg_dump --version
-
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
-
       - name: Run backup
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: python scripts/backup.py
-
+      - name: Keepalive (reset 60-dagen inactiviteitsteller)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow enable "Daily DB Backup" -R ${{ github.repository }}
       - name: Notify on failure
         if: failure()
         run: |
